@@ -276,7 +276,8 @@ def gather_vm_events(content, vm, eventid=None):
             {
                 'event_id': event.key,
                 'event_type': type(event).__name__.split('.')[-1],
-                'event_message': event.fullFormattedMessage
+                'event_message': event.fullFormattedMessage,
+                'created_time': event.createdTime
                 }
             )
 
