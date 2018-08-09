@@ -263,6 +263,25 @@ def _get_vm_prop(vm, attributes):
             return None
     return result
 
+def gather_vm_events(content, vm, eventid=None):
+    events = []
+    event_manager = content.eventManager
+    filter_spec = vim.event.EventFilterSpec()
+    filter_spec.entity = vim.event.EventFilterSpec.ByEntity(entity=vm, recursion="self")
+    if eventid:
+        filter_spec.eventTypeId = eventid
+    events_found = event_manager.QueryEvents(filter_spec)
+    for event in events_found:
+        events.append(
+            {
+                'event_id': event.key,
+                'event_type': type(event).__name__.split('.')[-1],
+                'event_message': event.fullFormattedMessage
+                }
+            )
+
+    return events
+
 
 def gather_vm_facts(content, vm):
     """ Gather facts from vim.VirtualMachine object. """
