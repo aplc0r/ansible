@@ -532,7 +532,7 @@ except ImportError:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_text, to_native
-from ansible.module_utils.vmware import (find_obj, gather_vm_facts, get_all_objs,
+from ansible.module_utils.vmware import (find_obj, gather_vm_facts, gather_vm_events, get_all_objs,
                                          compile_folder_path_for_object, serialize_spec,
                                          vmware_argument_spec, set_vm_power_state, PyVmomi,
                                          find_dvs_by_name, find_dvspg_by_name)
@@ -786,6 +786,9 @@ class PyVmomiHelper(PyVmomi):
 
     def gather_facts(self, vm):
         return gather_vm_facts(self.content, vm)
+
+    def gather_events(self, vm, eventid=None):
+        return gather_vm_events(self.content, vm, eventid)
 
     def remove_vm(self, vm):
         # https://www.vmware.com/support/developer/converter-sdk/conv60_apireference/vim.ManagedEntity.html#destroy
@@ -2121,6 +2124,9 @@ class PyVmomiHelper(PyVmomi):
                 if self.params['wait_for_ip_address']:
                     self.wait_for_vm_ip(vm)
 
+            if self.params['wait_for_customization'] and len(self.params['customization']) > 0:
+                self.wait_for_vm_customization(vm)
+
             vm_facts = self.gather_facts(vm)
             return {'changed': self.change_detected, 'failed': False, 'instance': vm_facts}
 
@@ -2266,6 +2272,18 @@ class PyVmomiHelper(PyVmomi):
 
         return facts
 
+    def wait_for_vm_customization(vm, poll=100, sleep=5):
+        events = []
+        while not events and thispoll <= poll:
+            for status in ['vim.event.CustomizationSucceeded', 'vim.event.CustomizationFailed']:
+                events = self.gather_events(vm, status)
+                if events:
+                    break
+                else:
+                    time.sleep(sleep)
+                    thispoll += 1
+
+
 
 def main():
     argument_spec = vmware_argument_spec()
@@ -2289,6 +2307,7 @@ def main():
         esxi_hostname=dict(type='str'),
         cluster=dict(type='str'),
         wait_for_ip_address=dict(type='bool', default=False),
+        wait_for_customization=dict(type='bool', default=False),
         state_change_timeout=dict(type='int', default=0),
         snapshot_src=dict(type='str'),
         linked_clone=dict(type='bool', default=False),
